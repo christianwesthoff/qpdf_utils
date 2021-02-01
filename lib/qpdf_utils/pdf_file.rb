@@ -7,7 +7,7 @@ module QPDFUtils
 
       @temp_files = []
       @file = pdf_file
-      @qpdf_runner  = options[:qpdf_runner]  || ShellRunner.new(QPDFUtils.qpdf_binary)
+      @qpdf_runner = options[:qpdf_runner] || ShellRunner.new(QPDFUtils.qpdf_binary)
       @password = options[:password]
     end
 
@@ -102,7 +102,7 @@ module QPDFUtils
     end
 
     def decrypt(pdf_file, password = nil)
-      temp_file = Tempfile.new ["qpdf_utils_decrypt", ".pdf"]
+      temp_file = Tempfile.new ["qpdf_decrypt", ".pdf"]
       temp_file.close
       @temp_files << temp_file
       begin
@@ -110,6 +110,22 @@ module QPDFUtils
       rescue CommandFailed
         if $?.exitstatus == 2
           raise InvalidPassword, "failed to decrypt #{pdf_file}, invalid/missing password?", caller
+        else
+          raise
+        end
+      end
+      temp_file.path
+    end
+
+    def encrypt(pdf_file, userPassword, ownerPassword, keyLength)
+      temp_file = Tempfile.new ["qpdf_encrypt", ".pdf"]
+      temp_file.close
+      @temp_files << temp_file
+      begin
+        @qpdf_runner.run %W(--encrypt #{userPassword} #{ownerPassword} #{keyLength} -- #{pdf_file} #{temp_file.path})
+      rescue CommandFailed
+        if $?.exitstatus == 2
+          raise ProcessingError, "failed to encrypt #{pdf_file}", caller
         else
           raise
         end
