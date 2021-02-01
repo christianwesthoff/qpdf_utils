@@ -13,7 +13,7 @@ module QPDFUtils
 
     def file
       if is_encrypted?
-        @decrypted_file ||= decrypt @file, @password
+        @decrypted_file ||= decrypt @password
       else
         @file
       end
@@ -62,13 +62,45 @@ module QPDFUtils
       pdf_files.map! do |pdf_file, password|
         validate pdf_file
         if check_encryption pdf_file
-          decrypt pdf_file, password
+          decrypt password
         else
           pdf_file
         end
       end
       @qpdf_runner.run %W(--empty --pages #{file}) + pdf_files + %W(-- #{targetfile})
       targetfile
+    end
+
+    def decrypt(password = nil)
+      temp_file = Tempfile.new ["qpdf_decrypt", ".pdf"]
+      temp_file.close
+      @temp_files << temp_file
+      begin
+        @qpdf_runner.run %W(--decrypt --password=#{password} #{@file} #{temp_file.path})
+      rescue CommandFailed
+        if $?.exitstatus == 2
+          raise InvalidPassword, "failed to decrypt #{pdf_file}, invalid/missing password?", caller
+        else
+          raise
+        end
+      end
+      temp_file.path
+    end
+
+    def encrypt(user_password, owner_password, key_length)
+      temp_file = Tempfile.new ["qpdf_encrypt", ".pdf"]
+      temp_file.close
+      @temp_files << temp_file
+      begin
+        @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{@file} #{temp_file.path})
+      rescue CommandFailed
+        if $?.exitstatus == 2
+          raise ProcessingError, "failed to encrypt #{pdf_file}", caller
+        else
+          raise
+        end
+      end
+      temp_file.path
     end
 
     def cleanup!
@@ -99,38 +131,6 @@ module QPDFUtils
       unless QPDFUtils.is_pdf? pdf_file
         raise BadFileType, "#{pdf_file} does not appear to be a PDF", caller
       end
-    end
-
-    def decrypt(pdf_file, password = nil)
-      temp_file = Tempfile.new ["qpdf_decrypt", ".pdf"]
-      temp_file.close
-      @temp_files << temp_file
-      begin
-        @qpdf_runner.run %W(--decrypt --password=#{password} #{pdf_file} #{temp_file.path})
-      rescue CommandFailed
-        if $?.exitstatus == 2
-          raise InvalidPassword, "failed to decrypt #{pdf_file}, invalid/missing password?", caller
-        else
-          raise
-        end
-      end
-      temp_file.path
-    end
-
-    def encrypt(pdf_file, user_password, owner_password, key_length)
-      temp_file = Tempfile.new ["qpdf_encrypt", ".pdf"]
-      temp_file.close
-      @temp_files << temp_file
-      begin
-        @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{pdf_file} #{temp_file.path})
-      rescue CommandFailed
-        if $?.exitstatus == 2
-          raise ProcessingError, "failed to encrypt #{pdf_file}", caller
-        else
-          raise
-        end
-      end
-      temp_file.path
     end
 
     def count_pages
