@@ -125,7 +125,7 @@ module QPDFUtils
         @qpdf_runner.run %W(--encrypt #{userPassword} #{ownerPassword} #{keyLength} -- #{pdf_file} #{temp_file.path})
       rescue CommandFailed
         if $?.exitstatus == 2
-          raise InvalidPassword, "failed to encrypt #{pdf_file}", caller
+          raise ProcessingError, "failed to encrypt #{pdf_file}", caller
         else
           raise
         end
