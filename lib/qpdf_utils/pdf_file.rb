@@ -117,12 +117,12 @@ module QPDFUtils
       temp_file.path
     end
 
-    def encrypt(pdf_file, userPassword, ownerPassword, keyLength)
+    def encrypt(pdf_file, user_password, owner_password, key_length)
       temp_file = Tempfile.new ["qpdf_encrypt", ".pdf"]
       temp_file.close
       @temp_files << temp_file
       begin
-        @qpdf_runner.run %W(--encrypt #{userPassword} #{ownerPassword} #{keyLength} -- #{pdf_file} #{temp_file.path})
+        @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{pdf_file} #{temp_file.path})
       rescue CommandFailed
         if $?.exitstatus == 2
           raise ProcessingError, "failed to encrypt #{pdf_file}", caller
