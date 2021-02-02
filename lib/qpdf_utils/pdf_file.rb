@@ -13,7 +13,9 @@ module QPDFUtils
 
     def file
       if is_encrypted?
-        @decrypted_file ||= decrypt @password
+        @decrypted_file = create_temp_file
+        decrypt(@password, @decrypted_file)
+        @decrypted_file
       else
         @file
       end
@@ -21,7 +23,7 @@ module QPDFUtils
 
     def is_encrypted?
       if @is_encrypted.nil?
-        @is_encrypted = check_encryption @file
+        @is_encrypted = check_encryption(@file)
       else
         @is_encrypted
       end
@@ -62,7 +64,9 @@ module QPDFUtils
       pdf_files.map! do |pdf_file, password|
         validate pdf_file
         if check_encryption pdf_file
-          decrypt password
+          decrypt_file = create_temp_file
+          decrypt(password, decrypt_file)
+          decrypt_file
         else
           pdf_file
         end
@@ -71,10 +75,7 @@ module QPDFUtils
       targetfile
     end
 
-    def decrypt(password = nil)
-      temp_file = Tempfile.new ["qpdf_decrypt", ".pdf"]
-      temp_file.close
-      @temp_files << temp_file
+    def decrypt(password = nil, targetfile)
       begin
         @qpdf_runner.run %W(--decrypt --password=#{password} #{@file} #{temp_file.path})
       rescue CommandFailed
@@ -84,15 +85,12 @@ module QPDFUtils
           raise
         end
       end
-      temp_file.path
+      targetfile
     end
 
-    def encrypt(user_password, owner_password, key_length)
-      temp_file = Tempfile.new ["qpdf_encrypt", ".pdf"]
-      temp_file.close
-      @temp_files << temp_file
+    def encrypt(user_password, owner_password, key_length, targetfile)
       begin
-        @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{@file} #{temp_file.path})
+        @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{@file} #{targetfile})
       rescue CommandFailed
         if $?.exitstatus == 2
           raise ProcessingError, "failed to encrypt #{@file}", caller
@@ -100,7 +98,7 @@ module QPDFUtils
           raise
         end
       end
-      temp_file.path
+      targetfile
     end
 
     def cleanup!
@@ -113,6 +111,13 @@ module QPDFUtils
     end
 
     private
+
+    def create_temp_file
+      temp_file = Tempfile.new ["temp", ".pdf"]
+      temp_file.close
+      @temp_files << temp_file
+      temp_file.path
+    end
 
     def check_encryption(pdf_file)
         head, foot = 0, [File.size(pdf_file) - 4096, 0].max
