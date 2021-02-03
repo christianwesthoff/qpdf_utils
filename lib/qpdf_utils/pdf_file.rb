@@ -44,9 +44,7 @@ module QPDFUtils
         raise OutOfBounds, "page range #{page_range} is out of bounds (1..#{pages})", caller
       end
       @qpdf_runner.run %W(--empty --pages #{@file} #{page_from}-#{page_to} -- #{targetfile})
-      if File.size(targetfile) == 0
-        raise ProcessingError, "extracted page is 0 bytes", caller
-      end
+      raise ProcessingError, "extracted page is 0 bytes", caller if File.size(targetfile) == 0
       targetfile
     end
 
@@ -75,9 +73,10 @@ module QPDFUtils
       targetfile
     end
 
-    def decrypt(password = nil, targetfile)
+    def decrypt(password = nil, targetfile=nil)
       begin
-        @qpdf_runner.run %W(--decrypt --password=#{password} #{@file} #{temp_file.path})
+        targetfile = "--replace-input" if targetfile.nil?
+        @qpdf_runner.run %W(--decrypt --password=#{password} #{@file} #{targetfile})
       rescue CommandFailed
         if $?.exitstatus == 2
           raise InvalidPassword, "failed to decrypt #{@file}, invalid/missing password?", caller
@@ -88,8 +87,9 @@ module QPDFUtils
       targetfile
     end
 
-    def encrypt(user_password, owner_password, key_length, targetfile)
+    def encrypt(user_password, owner_password, key_length, targetfile=nil)
       begin
+        targetfile = "--replace-input" if targetfile.nil?
         @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{@file} #{targetfile})
       rescue CommandFailed
         if $?.exitstatus == 2
@@ -133,17 +133,13 @@ module QPDFUtils
 
     def validate(pdf_file)
       raise Errno::ENOENT unless File.exists? pdf_file
-      unless QPDFUtils.is_pdf? pdf_file
-        raise BadFileType, "#{pdf_file} does not appear to be a PDF", caller
-      end
+      raise BadFileType, "#{pdf_file} does not appear to be a PDF", caller unless QPDFUtils.is_pdf? pdf_file
     end
 
     def count_pages
       output = @qpdf_runner.run_with_output %W(--show-npages #{@file})
       num_pages = output.to_i
-      if num_pages == 0
-        raise ProcessingError, "could not determine number of pages", caller
-      end
+      raise ProcessingError, "could not determine number of pages", caller if num_pages == 0
       num_pages
     end
 
