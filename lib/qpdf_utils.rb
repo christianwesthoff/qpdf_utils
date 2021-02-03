@@ -1,21 +1,27 @@
-require "qpdf_utils/version"
+require_relative 'qpdf_utils/version'
 
 module QPDFUtils
   class Error < StandardError; end
+
   class BadFileType < Error; end
+
   class CommandFailed < Error; end
+
   class ProcessingError < Error; end
+
   class OutOfBounds < Error; end
+
   class InvalidPassword < Error; end
 
   class << self
     attr_writer :qpdf_binary
+
     def qpdf_binary
-      @qpdf_binary ||= "qpdf"
+      @qpdf_binary ||= 'qpdf'
     end
 
     def is_pdf?(file)
-      IO.binread(file, 4) == "%PDF"
+      IO.binread(file, 4) == '%PDF'
     end
 
     def configure

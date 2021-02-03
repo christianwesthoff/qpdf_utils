@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 module QPDFUtils
   class PdfFile
     def initialize(pdf_file, options = {})
@@ -43,19 +41,18 @@ module QPDFUtils
       if page_from < 1 || page_from > page_to || page_to > pages
         raise OutOfBounds, "page range #{page_range} is out of bounds (1..#{pages})", caller
       end
-      @qpdf_runner.run %W(--empty --pages #{@file} #{page_from}-#{page_to} -- #{targetfile})
-      raise ProcessingError, "extracted page is 0 bytes", caller if File.size(targetfile) == 0
+      @qpdf_runner.run %W[--empty --pages #{@file} #{page_from}-#{page_to} -- #{targetfile}]
+      raise ProcessingError, 'extracted page is 0 bytes', caller if File.size(targetfile).zero?
       targetfile
     end
 
     # targetfile_template = "test-%d.pdf"
     def extract_pages(targetfile_template)
-      targetfiles = (1..pages).map do |page|
+      (1..pages).map do |page|
         targetfile = sprintf(targetfile_template, page)
-        @qpdf_runner.run %W(--empty --pages #{@file} #{page} -- #{targetfile})
+        @qpdf_runner.run %W[--empty --pages #{@file} #{page} -- #{targetfile}]
         targetfile
       end
-      targetfiles
     end
 
     def append_files(*pdf_files, targetfile)
@@ -69,14 +66,13 @@ module QPDFUtils
           pdf_file
         end
       end
-      @qpdf_runner.run %W(--empty --pages #{@file}) + pdf_files + %W(-- #{targetfile})
+      @qpdf_runner.run %W[--empty --pages #{@file}] + pdf_files + %W[-- #{targetfile}]
       targetfile
     end
 
     def decrypt(password = nil, targetfile=nil)
       begin
-        targetfile = "--replace-input" if targetfile.nil?
-        @qpdf_runner.run %W(--decrypt --password=#{password} #{@file} #{targetfile})
+        @qpdf_runner.run %W[--decrypt --password=#{password} #{@file} #{targetfile.nil? ? '--replace-input' : targetfile}]
       rescue CommandFailed
         if $?.exitstatus == 2
           raise InvalidPassword, "failed to decrypt #{@file}, invalid/missing password?", caller
@@ -84,13 +80,16 @@ module QPDFUtils
           raise
         end
       end
-      targetfile
+      if targetfile.nil?
+        @file
+      else
+        targetfile
+      end
     end
 
     def encrypt(user_password, owner_password, key_length, targetfile=nil)
       begin
-        targetfile = "--replace-input" if targetfile.nil?
-        @qpdf_runner.run %W(--encrypt #{user_password} #{owner_password} #{key_length} -- #{@file} #{targetfile})
+        @qpdf_runner.run %W[--encrypt #{user_password} #{owner_password} #{key_length} -- #{@file} #{targetfile.nil? ? '--replace-input' : targetfile}]
       rescue CommandFailed
         if $?.exitstatus == 2
           raise ProcessingError, "failed to encrypt #{@file}", caller
@@ -98,7 +97,11 @@ module QPDFUtils
           raise
         end
       end
-      targetfile
+      if targetfile.nil?
+        @file
+      else
+        targetfile
+      end
     end
 
     def cleanup!
@@ -113,33 +116,35 @@ module QPDFUtils
     private
 
     def create_temp_file
-      temp_file = Tempfile.new ["temp", ".pdf"]
+      temp_file = Tempfile.new(%w[temp .pdf])
       temp_file.close
       @temp_files << temp_file
       temp_file.path
     end
 
     def check_encryption(pdf_file)
-        head, foot = 0, [File.size(pdf_file) - 4096, 0].max
-        check_for_encrypt(pdf_file, head, foot)
+      head = 0
+      foot = [File.size(pdf_file) - 4096, 0].max
+      check_for_encrypt(pdf_file, head, foot)
     end
 
     def check_for_encrypt(pdf_file, *offsets)
       offsets.each do |offset|
-        return true if IO.binread(pdf_file, 4096, offset).index("/Encrypt") != nil
+        return true unless IO.binread(pdf_file, 4096, offset).index('/Encrypt').nil?
       end
       false
     end
 
     def validate(pdf_file)
-      raise Errno::ENOENT unless File.exists? pdf_file
+      raise Errno::ENOENT unless File.exist? pdf_file
       raise BadFileType, "#{pdf_file} does not appear to be a PDF", caller unless QPDFUtils.is_pdf? pdf_file
     end
 
     def count_pages
-      output = @qpdf_runner.run_with_output %W(--show-npages #{@file})
+      output = @qpdf_runner.run_with_output %W[--show-npages #{@file}]
       num_pages = output.to_i
-      raise ProcessingError, "could not determine number of pages", caller if num_pages == 0
+      raise ProcessingError, 'could not determine number of pages', caller if num_pages.zero?
+
       num_pages
     end
 

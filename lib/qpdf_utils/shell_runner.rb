@@ -1,4 +1,3 @@
-# encoding: utf-8
 begin
   require 'posix/spawn'
 rescue LoadError
@@ -20,7 +19,7 @@ module QPDFUtils
     def run_with_output(args)
       cmd = [@binary, *args]
       output, errors, status = capture(cmd)
-      unless status.exitstatus == 0 || status.exitstatus == 3 # warning
+      unless status.exitstatus.zero? || status.exitstatus == 3 # warning
         raise CommandFailed, "command #{cmd} failed with output: #{errors.inspect}", caller
       end
       output.chomp
