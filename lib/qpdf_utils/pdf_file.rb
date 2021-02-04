@@ -66,7 +66,7 @@ module QPDFUtils
           pdf_file
         end
       end
-      @qpdf_runner.run %W[--empty --pages #{@file}] + pdf_files + %W[-- #{targetfile}]
+      @qpdf_runner.run %W[--empty --pages #{@file} #{pdf_files.join(' ')} -- #{targetfile}]
       targetfile
     end
 
