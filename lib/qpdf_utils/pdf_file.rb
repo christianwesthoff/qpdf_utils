@@ -72,7 +72,7 @@ module QPDFUtils
 
     def decrypt(password = nil, targetfile=nil)
       begin
-        @qpdf_runner.run %W[--decrypt --password=#{password} #{@file} #{targetfile.nil? ? '--replace-input' : targetfile}]
+        @qpdf_runner.run %W[--decrypt --password=#{password} -- #{@file} #{targetfile.nil? ? '--replace-input' : targetfile}]
       rescue CommandFailed
         if $?.exitstatus == 2
           raise InvalidPassword, "failed to decrypt #{@file}, invalid/missing password?", caller
