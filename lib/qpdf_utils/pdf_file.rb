@@ -118,7 +118,7 @@ module QPDFUtils
     def create_temp_file
       temp_file = Tempfile.new(%w[temp .pdf])
       temp_file.close
-      @temp_files << temp_file
+      @temp_files.push(temp_file)
       temp_file.path
     end
 
