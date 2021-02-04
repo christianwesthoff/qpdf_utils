@@ -56,7 +56,7 @@ module QPDFUtils
     end
 
     def append_files(*pdf_files, targetfile)
-      pdf_files.map! do |pdf_file, password|
+      other_files = pdf_files.map! do |pdf_file, password|
         validate pdf_file
         if check_encryption pdf_file
           decrypt_file = create_temp_file
@@ -66,7 +66,7 @@ module QPDFUtils
           pdf_file
         end
       end
-      @qpdf_runner.run %W[--empty --pages #{@file} #{pdf_files.join(' ')} -- #{targetfile}]
+      @qpdf_runner.run %W[--empty --pages #{@file} #{other_files.join(' ')} -- #{targetfile}]
       targetfile
     end
 
